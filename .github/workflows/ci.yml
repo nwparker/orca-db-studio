@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: ${{ matrix.task }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # test:drivers starts PostgreSQL, MySQL and MariaDB with Testcontainers,
+        # which uses the Docker daemon already present on the runner.
+        task: [format:check, lint, typecheck, test:drivers, build]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # The packaged Orca app does not ship the plugin typings, so they come from the pinned source.
+      - run: npm run types
+
+      - run: npm run ${{ matrix.task }}
+
+  # Orca's own validator, built from the Orca source: the runner has no Orca app installed.
+  orca-validate:
+    name: orca plugin validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Keep in sync with ORCA_REF in build/orca-types.mjs. Bump it deliberately.
+      ORCA_REF: bf07b8f60eca8c44b083fd60396a40bdde3d046c
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: plugin
+          persist-credentials: false
+
+      - uses: actions/checkout@v7
+        with:
+          repository: stablyai/orca
+          ref: ${{ env.ORCA_REF }}
+          path: orca
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: orca/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: orca/pnpm-lock.yaml
+
+      # No install scripts: the validator needs the JavaScript dependencies, not Electron.
+      - name: Install Orca validator
+        working-directory: orca
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm run build:packages
+
+      - name: Validate manifest and entries
+        working-directory: orca
+        run: pnpm validate:plugin "$GITHUB_WORKSPACE/plugin"

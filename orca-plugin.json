@@ -1,0 +1,66 @@
+{
+  "manifestVersion": 2,
+  "id": "db-studio",
+  "name": "DB Studio",
+  "version": "0.1.0",
+  "description": "PostgreSQL, MySQL/MariaDB and SQLite from an editor tab, with safe, logged database access for Orca's agents over MCP.",
+  "engines": {
+    "orca": ">=1.4.248"
+  },
+  "execution": "trusted-worker",
+  "pluginApi": 1,
+  "main": "src/worker/index.ts",
+  "contributes": {
+    "panels": [
+      {
+        "id": "db-studio",
+        "title": "DB Studio",
+        "icon": "database",
+        "entry": "src/panel/index.tsx",
+        "ui": "components"
+      }
+    ],
+    "customEditors": [
+      {
+        "id": "db-studio-sqlite",
+        "title": "DB Studio",
+        "extensions": [".db", ".sqlite", ".sqlite3", ".db3"],
+        "entry": "src/editor/index.ts",
+        "frame": "isolated"
+      }
+    ],
+    "commands": [
+      { "id": "db-studio.newQuery", "title": "DB Studio: New Query", "when": "global" },
+      { "id": "db-studio.openTable", "title": "DB Studio: Open Table", "when": "global" },
+      {
+        "id": "db-studio.switchConnection",
+        "title": "DB Studio: Switch Connection",
+        "when": "global"
+      }
+    ],
+    "hooks": [{ "event": "agent.launch.before", "onError": "pass" }],
+    "settings": [
+      {
+        "key": "envVariable",
+        "title": "Connection variable",
+        "description": "Variable read from the worktree's .env to offer a per-worktree connection.",
+        "type": "string",
+        "default": "DATABASE_URL"
+      },
+      {
+        "key": "queryTimeoutSeconds",
+        "title": "Query timeout (seconds)",
+        "type": "integer",
+        "default": 30,
+        "minimum": 1
+      }
+    ]
+  },
+  "capabilities": [
+    { "kind": "storage:own" },
+    { "kind": "secrets:own" },
+    { "kind": "settings:own" },
+    { "kind": "workspace:read" },
+    { "kind": "notifications:show" }
+  ]
+}

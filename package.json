@@ -1,0 +1,45 @@
+{
+  "name": "db-studio",
+  "version": "0.1.0",
+  "description": "DB Studio for Orca: PostgreSQL, MySQL/MariaDB and SQLite from an editor tab, with safe agent access over MCP.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "node build/bundle-drivers.mjs",
+    "types": "node build/orca-types.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check .",
+    "test": "orca plugin test .",
+    "test:drivers": "vitest run --config test/vitest.config.ts",
+    "validate": "orca plugin validate ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.6",
+    "@codemirror/autocomplete": "^6.20.4",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-sql": "^6.10.0",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@testcontainers/mariadb": "^12.2.1",
+    "@testcontainers/mysql": "^12.2.1",
+    "@testcontainers/postgresql": "^12.2.1",
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "@types/pg-cursor": "^2.7.2",
+    "esbuild": "^0.28.2",
+    "mysql2": "^3.24.6",
+    "pg": "^8.23.1",
+    "pg-cursor": "^2.22.1",
+    "testcontainers": "^12.2.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

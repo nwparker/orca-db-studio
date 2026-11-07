@@ -62,6 +62,20 @@ orca plugin check .         # render check scenarios
 orca plugin validate .      # manifest and entries, same check as the directory
 ```
 
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues (`oscarbotteri/orca-db-studio`), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
 ## Documentation
 
 The `docs/` folder contains the product scope, the architecture, and decisions that explain the **why** behind non-obvious choices. Read relevant docs before working on a related area, and add an ADR when you make a decision that would otherwise surprise a future reader.

@@ -18,6 +18,7 @@ import {
   syntaxHighlighting,
 } from '../../vendor/codemirror.js'
 import type { SqlDialect } from '../protocol'
+import type { TextChange } from './statements'
 
 const DIALECTS = { sqlite: SQLite, postgres: PostgreSQL, mysql: MySQL, mariadb: MariaSQL }
 
@@ -37,6 +38,8 @@ export interface SqlEditor {
   selection(): string | undefined
   cursor(): number
   replace(text: string): void
+  /** Applies an edit as typing would, so the document syncs it like any other change. */
+  change(change: TextChange): void
 }
 
 export function createSqlEditor(options: SqlEditorOptions): SqlEditor {
@@ -78,6 +81,9 @@ export function createSqlEditor(options: SqlEditorOptions): SqlEditor {
     cursor: () => view.state.selection.main.head,
     replace(text) {
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } })
+    },
+    change(change) {
+      view.dispatch({ changes: change })
     },
   }
 }

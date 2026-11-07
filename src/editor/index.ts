@@ -1,8 +1,16 @@
 // Query document editor: a custom editor for .sql files. Q1, G1, ADR 0003
-import type { SqlDialect } from '../protocol'
+import type { ConnectionEntry, SqlDialect } from '../protocol'
+import { createConnectionChooser } from './connection-chooser'
+import { chooserState } from './connection-state'
 import { renderError, renderGrid } from './grid'
 import { createSqlEditor } from './sql-editor'
-import { connectionRef, isTableQuery, statementAt, statementCount } from './statements'
+import {
+  connectionLineChange,
+  connectionRef,
+  isTableQuery,
+  statementAt,
+  statementCount,
+} from './statements'
 
 const STYLE = `
   html, body { margin: 0; height: 100%; }
@@ -13,6 +21,12 @@ const STYLE = `
   .toolbar button { font: inherit; color: inherit; background: transparent; cursor: pointer;
     border: 1px solid var(--orca-border); border-radius: 4px; padding: 2px 10px; }
   .toolbar .hint { opacity: .6; }
+  .chooser { display: flex; gap: 8px; align-items: center; padding: 6px 10px;
+    border-bottom: 1px solid var(--orca-border); }
+  .chooser[hidden] { display: none; }
+  .chooser select { font: inherit; color: inherit; background: var(--orca-background);
+    border: 1px solid var(--orca-border); border-radius: 4px; padding: 2px 6px; }
+  .chooser .notice { padding: 0; border: 0; }
   .editor { flex: 0 0 40%; overflow: auto; border-bottom: 1px solid var(--orca-border); }
   .editor .cm-editor { height: 100%; background: var(--orca-background); color: var(--orca-foreground); }
   .result { flex: 1; overflow: auto; }
@@ -27,8 +41,7 @@ const STYLE = `
   .grid td.null { opacity: .5; font-style: italic; }
 `
 
-const NO_CONNECTION =
-  'This file names no connection. Its first line should be -- db-studio: connection=<ref>'
+const NO_CONNECTION = 'Choose a connection to run this file.'
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -59,11 +72,16 @@ const result = div('result')
 document.body.append(toolbar, editorHost, result)
 
 const ref = connectionRef(doc.value)
+let entries: ConnectionEntry[] | undefined
+try {
+  entries = (await orca.plugin.request('connections.list')).sqliteFiles
+} catch {
+  // Without the list the document's own line stands; connection.info below still checks it.
+}
+const { needsChoice, notice } = chooserState(ref, entries, doc.readOnly)
 let dialect: SqlDialect | undefined
 let failure: string | undefined
-if (ref === undefined) {
-  failure = NO_CONNECTION
-} else {
+if (ref !== undefined && !needsChoice) {
   try {
     dialect = (await orca.plugin.request('connection.info', { ref })).dialect
   } catch (error) {
@@ -82,13 +100,51 @@ const editor = createSqlEditor({
 doc.onReplace((value) => editor.replace(value))
 
 let running = false
+let connected = !needsChoice && failure === undefined
+/** Only the latest choice may land: an earlier, slower one is stale by then. */
+let latestChoice = 0
+
+async function connect(chosen: string): Promise<void> {
+  const mine = ++latestChoice
+  try {
+    await orca.plugin.request('connection.info', { ref: chosen })
+  } catch (error) {
+    if (mine !== latestChoice) return
+    // The chooser stays up so another connection can be picked.
+    chooser.setNotice(errorMessage(error))
+    chooser.reset()
+    return
+  }
+  if (mine !== latestChoice) return
+  // The line is written only for a connection that works, so the file never keeps a broken one.
+  editor.change(connectionLineChange(editor.text(), chosen))
+  chooser.element.hidden = true
+  chooser.setNotice(undefined)
+  result.replaceChildren()
+  connected = true
+  run.disabled = false
+}
+
+const chooser = createConnectionChooser(
+  entries ?? [],
+  (chosen) => void connect(chosen),
+  doc.readOnly,
+)
+// A registered connection that fails to connect still offers the chooser beside the error.
+chooser.element.hidden = connected
+chooser.setNotice(notice)
+toolbar.after(chooser.element)
 
 async function execute(): Promise<void> {
   // Mod-Enter bypasses the disabled button; a second run would race the first.
-  if (running) return
+  if (running || !connected) return
   const ref = connectionRef(editor.text())
   if (ref === undefined) {
-    renderError(result, NO_CONNECTION)
+    // The line was removed after connecting, by undo or by hand: offer the chooser again.
+    connected = false
+    run.disabled = true
+    chooser.element.hidden = false
+    chooser.setNotice(NO_CONNECTION)
     return
   }
   const sql = editor.selection() ?? statementAt(editor.text(), editor.cursor())
@@ -114,7 +170,9 @@ async function execute(): Promise<void> {
 
 run.addEventListener('click', () => void execute())
 
-if (failure !== undefined) {
+if (needsChoice) {
+  run.disabled = true
+} else if (failure !== undefined) {
   renderError(result, failure)
   run.disabled = true
 } else if (isTableQuery(doc.value)) {

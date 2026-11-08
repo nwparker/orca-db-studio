@@ -74,6 +74,7 @@ A query result travels to the editor as the answer to one `plugin.request`, whic
 - **Result ceiling:** the query engine stops at 5000 rows or about 900 KB of serialized result, whichever comes first, even when the statement has its own `LIMIT`. The grid shows the same cut-off notice as for the row limit.
 - **Long cells:** text is cut to 300 characters and binary values travel as a placeholder with their size (`<blob 1.2 KB>`). The full value is fetched on demand by `(row, column)` from the worker for the full-value panel (G3), capped at 1 MiB.
 - **Values on the wire:** results are JSON. Integers beyond 2^53 and exact decimals travel as strings, dates as ISO strings, binary as a placeholder; duplicate column names are kept by position, not by name.
+- **Full values:** each query document names itself with a `documentId` it generates. The engine keeps the returned rows' full values per document, replaces them on a re-run, drops them on `query.release` (sent when the frame closes, best effort) and keeps the 16 most recently run documents.
 - **Timeout:** `queryTimeoutSeconds` (default 30) is capped at 110 so the worker answers before the request expires.
 
 ## Connections
@@ -120,7 +121,7 @@ Engine notes:
   - The connection is always `utf8mb4`: the server converts columns to it, so the bundle decodes no other character set. A server that cannot convert a column to utf8mb4 is not supported.
   - Every `BIGINT` and `DECIMAL` is a string, and a bare `SELECT 1` is a `BIGINT` on MySQL but an `INT` on MariaDB.
   - A cursor closed before its result ends runs `KILL QUERY` first: the connection is busy until the server has sent the rest.
-- **SQLite:** `node:sqlite` in a `worker_threads` thread, iterating rows with `statement.iterate()`; cancel and timeout terminate the thread.
+- **SQLite:** `node:sqlite` in a `worker_threads` thread, iterating rows with `statement.iterate()`; cancel and timeout terminate the thread. A connection has one thread shared by every query document using it, so cancelling or timing out one query also ends the other documents' running queries on that connection (they fail with the same cancel or timeout error); the next query starts a fresh thread (ADR 0004).
 
 ## Orca platform limits
 

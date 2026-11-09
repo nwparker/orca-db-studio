@@ -21,7 +21,7 @@ The result: Orca users keep TablePlus, DBeaver or `psql` open on the side, and a
 1. **Look at a database without leaving Orca:** connect, see its tables, open one, run a query. This is the MVP.
 2. **One model for three engines:** same UI and features everywhere; engine differences stay inside the driver.
 3. **Per-worktree databases:** each worktree's own database, read from its `.env`, with nothing to configure.
-4. **Safe, visible agent access (v1):** Orca's agents query the database over MCP, read-only by default, and every query is logged.
+4. **Safe agent access (v1):** Orca's agents query the database over MCP, read-only by default. The activity log of what they ran follows in v2 (A4).
 5. **Publishable in the Orca plugin directory**, as a public project (`oscarbotteri/orca-db-studio`) once the MVP works.
 
 ## Non-goals (for now)
@@ -95,7 +95,7 @@ Opening a table is not a separate view: it is a query document prefilled with a 
 | A1  | Agents       | MCP server with `list_connections`, `describe_schema`, `run_query`, injected when Orca launches agents; `run_query` returns 100 rows by default, 1000 at most | v1 |
 | A2  | Agents       | Agent access per connection: `off` or `read-only` (default)                                                               | v1      |
 | A3  | Agents       | `read-write` agent access; agent writes wait for approval in the UI, with a notification                                  | v2      |
-| A4  | Agents       | Activity log: SQL, origin (person or agent, and worktree), duration, rows, outcome                                        | v1      |
+| A4  | Agents       | Activity log: SQL, origin (person or agent, and worktree), duration, rows, outcome                                        | v2      |
 | A5  | Agents       | Open the result of an agent's query in the grid                                                                           | v2      |
 | X1  | General      | Commands in Orca's palette: new query, open table, switch connection                                                      | v1      |
 | X2  | General      | Open `psql` / `mysql` in an Orca terminal with the active connection                                                      | v3      |

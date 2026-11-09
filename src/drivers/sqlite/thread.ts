@@ -5,11 +5,12 @@ import type { StatementSync } from 'node:sqlite'
 import { DatabaseSync } from 'node:sqlite'
 import { parentPort, workerData } from 'node:worker_threads'
 import type { ColumnMeta, Row } from '../common/driver.ts'
-import type { SchemaNode, SchemaTree } from '../common/schema.ts'
+import type { ColumnTree, SchemaNode, SchemaTree, TableColumns } from '../common/schema.ts'
 
 export interface ThreadOps {
   open: { input: Record<string, never>; output: null }
   listObjects: { input: Record<string, never>; output: SchemaTree }
+  listColumns: { input: Record<string, never>; output: ColumnTree }
   query: {
     input: { sql: string }
     output: {
@@ -95,6 +96,36 @@ function listObjects(): SchemaTree {
   return { schemas }
 }
 
+function columnsOf(schema: string, table: string): string[] | undefined {
+  try {
+    return database()
+      .prepare('SELECT name FROM pragma_table_info(?, ?) ORDER BY cid')
+      .all(table, schema)
+      .map((row) => String(row.name))
+  } catch {
+    // A view over a dropped table fails here; it would take every other table's columns with it.
+    return undefined
+  }
+}
+
+function listColumns(): ColumnTree {
+  const tables: TableColumns[] = []
+  for (const { name } of database().prepare('PRAGMA database_list').all()) {
+    const schema = String(name)
+    const objects = database()
+      .prepare(
+        `SELECT name FROM ${quoteIdent(schema)}.sqlite_schema
+         WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name`,
+      )
+      .all()
+    for (const { name: table } of objects) {
+      const columns = columnsOf(schema, String(table))
+      if (columns?.length) tables.push({ schema, name: String(table), columns })
+    }
+  }
+  return { defaultSchema: 'main', tables }
+}
+
 function query(sql: string): ThreadOps['query']['output'] {
   const statement: StatementSync = database().prepare(sql)
   const columns = statement.columns().map((c) => ({ name: c.name, type: c.type ?? '' }))
@@ -146,6 +177,8 @@ function handle(op: ThreadOp, input: unknown): unknown {
       return null
     case 'listObjects':
       return listObjects()
+    case 'listColumns':
+      return listColumns()
     case 'query':
       return query((input as ThreadOps['query']['input']).sql)
     case 'fetch': {

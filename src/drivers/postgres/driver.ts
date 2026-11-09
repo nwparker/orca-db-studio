@@ -2,20 +2,12 @@
 // buffered whole. Cancel runs pg_cancel_backend from a second connection; a timeout is the
 // server's statement_timeout, so the server ends the query itself.
 import type { ClientConfig, FieldDef } from 'pg'
-import { formatSize } from './format-size'
-import type {
-  ColumnMeta,
-  ConnectionConfig,
-  Driver,
-  PostgresConfig,
-  QueryCursor,
-  QueryOptions,
-  Row,
-  SchemaTree,
-  Session,
-} from './types'
+import type { ConnectionConfig, PostgresConfig } from '../common/config'
+import type { ColumnMeta, Driver, QueryCursor, QueryOptions, Row, Session } from '../common/driver'
+import type { SchemaTree } from '../common/schema'
+import { formatSize } from '../common/utils'
 
-type PgModule = typeof import('../../vendor/pg.js')
+type PgModule = typeof import('../../../vendor/pg.js')
 type PgClient = InstanceType<PgModule['pg']['Client']>
 
 const OID_DATE = 1082
@@ -253,7 +245,7 @@ export const postgresDriver: Driver = {
     if (config.engine !== 'postgres')
       throw new Error(`Not a PostgreSQL connection: ${config.engine}`)
     const session = new PostgresSession(
-      await import('../../vendor/pg.js'),
+      await import('../../../vendor/pg.js'),
       clientConfig(config, secret),
     )
     try {

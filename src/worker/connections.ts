@@ -1,8 +1,8 @@
 // Connection registry (storage:own), passwords (secrets:own), SQLite files, worktree connections from .env. C1-C4
 import { basename, dirname, isAbsolute, normalize } from 'node:path'
 import type { OrcaWorkerApi } from 'orca/worker'
-import { loadDriver } from '../drivers/registry'
-import type { ConnectionConfig, SchemaTree, Session, SqlDialect } from '../drivers/types'
+import type { ConnectionConfig, SchemaTree, Session, SqlDialect } from '../drivers'
+import { loadDriver } from '../drivers'
 import type {
   CellValue,
   ConnectionEntry,
